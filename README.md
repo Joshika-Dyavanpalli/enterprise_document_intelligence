@@ -256,9 +256,6 @@ JWT_SECRET=your_secret_key
 ---
 
 ## Future Enhancements
-
-- Document Dashboard
-- Delete Documents
 - Multi-document Search
 - Chat History
 - Docker Support
