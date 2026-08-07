@@ -8,8 +8,16 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
   const handleLogin = async (e) => {
     e.preventDefault();
+
+    setLoading(true);
+    setError("");
+    setSuccess("");
 
     try {
       const response = await api.post("/auth/login", {
@@ -21,26 +29,32 @@ export default function Login() {
 
       localStorage.setItem("token", response.data.token);
 
-      alert("Login Successful!");
+      if (response.data.user) {
+        localStorage.setItem("user", JSON.stringify(response.data.user));
+      }
 
-      navigate("/dashboard");
+      setSuccess("Login Successful!");
+
+      setTimeout(() => {
+        navigate("/dashboard");
+      }, 1000);
     } catch (error) {
       console.log(error);
 
       if (error.response) {
-        console.log("Status:", error.response.status);
-        console.log("Data:", error.response.data);
-        alert(error.response.data.message);
+        setError(error.response.data.message);
       } else {
-        alert("Unable to connect to the server");
+        setError("Unable to connect to the server");
       }
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div style={styles.container}>
       <form style={styles.form} onSubmit={handleLogin}>
-        <h2>Login</h2>
+        <h2 style={{ textAlign: "center" }}>Login</h2>
 
         <input
           type="email"
@@ -60,9 +74,15 @@ export default function Login() {
           required
         />
 
-        <button type="submit" style={styles.button}>
-          Login
+        <button type="submit" style={styles.button} disabled={loading}>
+          {loading ? "Logging in..." : "Login"}
         </button>
+
+        {success && (
+          <p style={{ color: "green", marginTop: "15px" }}>{success}</p>
+        )}
+
+        {error && <p style={{ color: "red", marginTop: "15px" }}>{error}</p>}
       </form>
     </div>
   );

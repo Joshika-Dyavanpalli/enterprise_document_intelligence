@@ -3,16 +3,24 @@ import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 
 export default function Upload() {
-  const [file, setFile] = useState(null);
-  const [message, setMessage] = useState("");
-
   const navigate = useNavigate();
 
+  const [file, setFile] = useState(null);
+
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
   const handleUpload = async () => {
+    setMessage("");
+    setError("");
+
     if (!file) {
-      alert("Please select a file");
+      setError("Please select a file.");
       return;
     }
+
+    setLoading(true);
 
     const formData = new FormData();
     formData.append("document", file);
@@ -29,7 +37,6 @@ export default function Upload() {
 
       console.log(response.data);
 
-      // Save only the document object
       localStorage.setItem("document", JSON.stringify(response.data.document));
 
       setMessage("Document Uploaded Successfully!");
@@ -37,19 +44,26 @@ export default function Upload() {
       setTimeout(() => {
         navigate("/chat");
       }, 1000);
-    } catch (error) {
-      console.log(error);
+    } catch (err) {
+      console.log(err);
 
-      if (error.response) {
-        console.log(error.response.data);
+      if (err.response) {
+        setError(err.response.data.message);
+      } else {
+        setError("Unable to connect to the server.");
       }
-
-      setMessage("Upload Failed");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div style={{ padding: "40px", textAlign: "center" }}>
+    <div
+      style={{
+        padding: "40px",
+        textAlign: "center",
+      }}
+    >
       <h1>Upload Document</h1>
 
       <br />
@@ -59,12 +73,18 @@ export default function Upload() {
       <br />
       <br />
 
-      <button onClick={handleUpload}>Upload</button>
+      <button onClick={handleUpload} disabled={loading}>
+        {loading ? "Uploading..." : "Upload"}
+      </button>
 
       <br />
       <br />
 
-      <h3>{message}</h3>
+      {message && (
+        <p style={{ color: "green", fontWeight: "bold" }}>{message}</p>
+      )}
+
+      {error && <p style={{ color: "red", fontWeight: "bold" }}>{error}</p>}
     </div>
   );
 }

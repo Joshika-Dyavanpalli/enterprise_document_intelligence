@@ -5,6 +5,7 @@ import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
 import Upload from "./pages/Upload";
 import Chat from "./pages/Chat";
+import Documents from "./pages/Documents";
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
       <Route path="/signup" element={<Signup />} />
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/upload" element={<Upload />} />
+      <Route path="/documents" element={<Documents />} />
       <Route path="/chat" element={<Chat />} />
     </Routes>
   );

@@ -4,11 +4,27 @@ import api from "../services/api";
 export default function Chat() {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const document = JSON.parse(localStorage.getItem("document"));
+
+  if (!document) {
+    return (
+      <div style={{ padding: "40px", textAlign: "center" }}>
+        <h2>No Document Uploaded</h2>
+        <p>Please upload a document before chatting with the AI.</p>
+      </div>
+    );
+  }
 
   const handleAsk = async () => {
+    setLoading(true);
+    setError("");
+    setAnswer("");
+
     try {
       const token = localStorage.getItem("token");
-      const document = JSON.parse(localStorage.getItem("document"));
 
       const response = await api.post(
         "/auth/ask",
@@ -28,9 +44,12 @@ export default function Chat() {
       console.log(err);
 
       if (err.response) {
-        console.log(err.response.data);
-        alert(err.response.data.message);
+        setError(err.response.data.message);
+      } else {
+        setError("Unable to connect to the server.");
       }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -43,17 +62,45 @@ export default function Chat() {
         value={question}
         onChange={(e) => setQuestion(e.target.value)}
         placeholder="Ask a question..."
-        style={{ width: "400px" }}
+        style={{
+          width: "500px",
+          padding: "10px",
+        }}
       />
 
-      <button onClick={handleAsk}>Ask</button>
+      <button
+        onClick={handleAsk}
+        disabled={loading}
+        style={{
+          marginLeft: "10px",
+          padding: "10px 20px",
+        }}
+      >
+        {loading ? "Thinking..." : "Ask"}
+      </button>
 
       <br />
       <br />
 
-      <h3>Answer</h3>
+      {error && <p style={{ color: "red", fontWeight: "bold" }}>{error}</p>}
 
-      <p>{answer}</p>
+      {answer && (
+        <>
+          <h3>Answer</h3>
+
+          <div
+            style={{
+              border: "1px solid #ddd",
+              borderRadius: "8px",
+              padding: "15px",
+              background: "#f8f8f8",
+              whiteSpace: "pre-wrap",
+            }}
+          >
+            {answer}
+          </div>
+        </>
+      )}
     </div>
   );
 }
