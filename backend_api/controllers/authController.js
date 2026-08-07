@@ -108,11 +108,11 @@ async function uploadDocument(req, res) {
     }
 
     const aiResponse = await uploadToAI(
-    req.file.path,
-    req.file.originalname
+      req.file.path,
+      req.file.originalname
     );
-    
-    await Document.create({
+
+    const savedDocument = await Document.create({
       userId: req.user.id,
       filename: req.file.filename,
       originalName: req.file.originalname,
@@ -127,9 +127,9 @@ async function uploadDocument(req, res) {
     return res.status(200).json({
       success: true,
       message: "Document uploaded successfully",
-      file: req.file.filename,
-      aiResponse,
+      document: savedDocument,
     });
+
   } catch (error) {
     console.log(error);
 
@@ -163,7 +163,11 @@ async function askQuestion(req, res) {
       });
     }
 
-    const aiResponse = await askAI(document.extractedText, question);
+    const aiResponse = await askAI(
+      document.vectorPath,
+      document.chunksPath,
+      question,
+    );
 
     return res.status(200).json({
       success: true,

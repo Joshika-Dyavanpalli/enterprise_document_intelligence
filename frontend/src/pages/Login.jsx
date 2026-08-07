@@ -12,10 +12,12 @@ export default function Login() {
     e.preventDefault();
 
     try {
-      const response = await api.post("/login", {
+      const response = await api.post("/auth/login", {
         email,
         password,
       });
+
+      console.log("Login Response:", response.data);
 
       localStorage.setItem("token", response.data.token);
 
@@ -23,7 +25,15 @@ export default function Login() {
 
       navigate("/dashboard");
     } catch (error) {
-      alert(error.response?.data?.message || "Login Failed");
+      console.log(error);
+
+      if (error.response) {
+        console.log("Status:", error.response.status);
+        console.log("Data:", error.response.data);
+        alert(error.response.data.message);
+      } else {
+        alert("Unable to connect to the server");
+      }
     }
   };
 
@@ -68,7 +78,7 @@ const styles = {
   },
 
   form: {
-    background: "#fff",
+    background: "#ffffff",
     padding: "30px",
     borderRadius: "10px",
     width: "350px",
@@ -86,9 +96,9 @@ const styles = {
     width: "100%",
     padding: "10px",
     background: "#1976d2",
-    color: "#fff",
+    color: "#ffffff",
     border: "none",
-    cursor: "pointer",
     borderRadius: "5px",
+    cursor: "pointer",
   },
 };

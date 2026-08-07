@@ -1,9 +1,12 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 
 export default function Upload() {
   const [file, setFile] = useState(null);
   const [message, setMessage] = useState("");
+
+  const navigate = useNavigate();
 
   const handleUpload = async () => {
     if (!file) {
@@ -12,12 +15,12 @@ export default function Upload() {
     }
 
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("document", file);
 
     try {
       const token = localStorage.getItem("token");
 
-      const response = await api.post("/upload", formData, {
+      const response = await api.post("/auth/upload", formData, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "multipart/form-data",
@@ -26,21 +29,27 @@ export default function Upload() {
 
       console.log(response.data);
 
+      // Save only the document object
+      localStorage.setItem("document", JSON.stringify(response.data.document));
+
       setMessage("Document Uploaded Successfully!");
+
+      setTimeout(() => {
+        navigate("/chat");
+      }, 1000);
     } catch (error) {
       console.log(error);
+
+      if (error.response) {
+        console.log(error.response.data);
+      }
 
       setMessage("Upload Failed");
     }
   };
 
   return (
-    <div
-      style={{
-        padding: "40px",
-        textAlign: "center",
-      }}
-    >
+    <div style={{ padding: "40px", textAlign: "center" }}>
       <h1>Upload Document</h1>
 
       <br />
