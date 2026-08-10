@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import api from "../services/api";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -9,8 +10,36 @@ export default function Dashboard() {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     localStorage.removeItem("document");
+
     navigate("/");
   };
+
+  const handleNewChat = async () => {
+    try {
+      const token = localStorage.getItem("token");
+
+      const response = await api.post(
+        "/chat/new",
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      navigate(`/chat/${response.data.chat._id}`);
+    } catch (err) {
+      console.log(err);
+
+      if (err.response) {
+        alert(err.response.data.message || "Unable to create new chat.");
+      } else {
+        alert("Unable to connect to the server.");
+      }
+    }
+  };
+
 
   return (
     <div style={styles.container}>
@@ -24,12 +53,16 @@ export default function Dashboard() {
 
       <br />
 
-      <button onClick={() => navigate("/upload")} style={styles.button}>
-        Upload Document
+      {/* NEW CHAT */}
+
+      <button onClick={handleNewChat} style={styles.button}>
+        + New Chat
       </button>
 
       <br />
       <br />
+
+      {/* MY DOCUMENTS */}
 
       <button onClick={() => navigate("/documents")} style={styles.button}>
         My Documents
@@ -37,6 +70,8 @@ export default function Dashboard() {
 
       <br />
       <br />
+
+      {/* LOGOUT */}
 
       <button onClick={handleLogout} style={styles.logoutButton}>
         Logout
@@ -52,7 +87,7 @@ const styles = {
   },
 
   button: {
-    width: "220px",
+    width: "285px",
     padding: "12px",
     cursor: "pointer",
     background: "#1976d2",
@@ -63,7 +98,7 @@ const styles = {
   },
 
   logoutButton: {
-    width: "220px",
+    width: "285px",
     padding: "12px",
     cursor: "pointer",
     background: "#d32f2f",

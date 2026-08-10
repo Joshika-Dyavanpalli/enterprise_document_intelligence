@@ -1,10 +1,17 @@
 const fs = require("fs");
+
 const Document = require("../models/documents");
-const { uploadToAI, askAI } = require("../services/aiService");
+const Chat = require("../models/Chat");
 const User = require("../models/User.js");
+
+const { uploadToAI } = require("../services/aiService");
+
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
+/*
+  SIGNUP
+*/
 async function signup(req, res) {
   try {
     const { name, email, password } = req.body;
@@ -36,10 +43,11 @@ async function signup(req, res) {
 
     return res.status(201).json({
       success: true,
-      message: "Signup Successfull",
+      message: "Signup Successful",
     });
   } catch (error) {
     console.log(error);
+
     return res.status(500).json({
       success: false,
       message: "Internal Server Error",
@@ -47,6 +55,9 @@ async function signup(req, res) {
   }
 }
 
+/*
+  LOGIN
+*/
 async function login(req, res) {
   try {
     const { email, password } = req.body;
@@ -66,13 +77,16 @@ async function login(req, res) {
         message: "User not Found",
       });
     }
+
     const isMatch = await bcrypt.compare(password, user.password);
+
     if (!isMatch) {
       return res.status(401).json({
         success: false,
         message: "Password does not match",
       });
     }
+
     const token = jwt.sign(
       {
         id: user._id,
@@ -83,10 +97,12 @@ async function login(req, res) {
         expiresIn: "1d",
       },
     );
+
     return res.status(200).json({
       success: true,
       message: "Login successful",
       token,
+
       user: {
         id: user._id,
         name: user.name,
@@ -96,6 +112,7 @@ async function login(req, res) {
     });
   } catch (error) {
     console.log(error);
+
     return res.status(500).json({
       success: false,
       message: "Internal Server Error",
@@ -103,6 +120,9 @@ async function login(req, res) {
   }
 }
 
+/*
+  PROFILE
+*/
 function getProfile(req, res) {
   return res.status(200).json({
     success: true,
@@ -111,10 +131,39 @@ function getProfile(req, res) {
   });
 }
 
-module.exports = { signup, login, getProfile };
+/*
+  UPLOAD DOCUMENT
 
+  IMPORTANT:
+
+  chatId is required.
+
+  The uploaded document is:
+  1. processed by AI service
+  2. saved in Document collection
+  3. attached to the CURRENT chat
+
+  This fixes:
+
+  New Chat
+      ↓
+  Upload
+      ↓
+  return to same chat
+      ↓
+  document is already available
+*/
 async function uploadDocument(req, res) {
   try {
+    const { chatId } = req.body;
+
+    if (!chatId) {
+      return res.status(400).json({
+        success: false,
+        message: "Chat ID is required",
+      });
+    }
+
     if (!req.file) {
       return res.status(400).json({
         success: false,
@@ -122,11 +171,23 @@ async function uploadDocument(req, res) {
       });
     }
 
-    const aiResponse = await uploadToAI(
-      req.file.path,
-      req.file.originalname
-    );
+    // Check chat belongs to logged-in user
+    const chat = await Chat.findOne({
+      _id: chatId,
+      userId: req.user.id,
+    });
 
+    if (!chat) {
+      return res.status(404).json({
+        success: false,
+        message: "Chat not found",
+      });
+    }
+
+    // Send file to AI service
+    const aiResponse = await uploadToAI(req.file.path, req.file.originalname);
+
+    // Save document
     const savedDocument = await Document.create({
       userId: req.user.id,
       filename: req.file.filename,
@@ -139,54 +200,16 @@ async function uploadDocument(req, res) {
       chunkCount: aiResponse.chunk_count,
     });
 
+    // Attach document to THIS chat
+    chat.documents.push(savedDocument._id);
+
+    await chat.save();
+
     return res.status(200).json({
       success: true,
       message: "Document uploaded successfully",
       document: savedDocument,
-    });
-
-  } catch (error) {
-    console.log(error);
-
-    return res.status(500).json({
-      success: false,
-      message: "Internal Server Error",
-    });
-  }
-}
-
-async function askQuestion(req, res) {
-  try {
-    const { documentId, question } = req.body;
-
-    if (!documentId || !question) {
-      return res.status(400).json({
-        success: false,
-        message: "Document ID and Question are required",
-      });
-    }
-
-    const document = await Document.findOne({
-      _id: documentId,
-      userId: req.user.id,
-    });
-
-    if (!document) {
-      return res.status(404).json({
-        success: false,
-        message: "Document not found",
-      });
-    }
-
-    const aiResponse = await askAI(
-      document.vectorPath,
-      document.chunksPath,
-      question,
-    );
-
-    return res.status(200).json({
-      success: true,
-      answer: aiResponse.answer,
+      chatId: chat._id,
     });
   } catch (error) {
     console.log(error);
@@ -198,6 +221,9 @@ async function askQuestion(req, res) {
   }
 }
 
+/*
+  GET ALL DOCUMENTS
+*/
 async function getAllDocuments(req, res) {
   try {
     const documents = await Document.find(
@@ -225,6 +251,9 @@ async function getAllDocuments(req, res) {
   }
 }
 
+/*
+  GET ONE DOCUMENT
+*/
 async function getDocumentById(req, res) {
   try {
     const { id } = req.params;
@@ -255,6 +284,9 @@ async function getDocumentById(req, res) {
   }
 }
 
+/*
+  DELETE DOCUMENT
+*/
 async function deleteDocument(req, res) {
   try {
     const { id } = req.params;
@@ -271,15 +303,116 @@ async function deleteDocument(req, res) {
       });
     }
 
+    // Delete physical file
     if (fs.existsSync(document.filePath)) {
       fs.unlinkSync(document.filePath);
     }
 
+    // Delete document
     await Document.findByIdAndDelete(id);
+
+    // Remove document from chats
+    await Chat.updateMany(
+      {
+        userId: req.user.id,
+      },
+      {
+        $pull: {
+          documents: id,
+        },
+      },
+    );
 
     return res.status(200).json({
       success: true,
       message: "Document deleted successfully",
+    });
+  } catch (error) {
+    console.log(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
+}
+
+/*
+  GET ALL USERS
+*/
+async function getAllUsers(req, res) {
+  try {
+    const users = await User.find(
+      {},
+      {
+        password: 0,
+      },
+    ).sort({
+      createdAt: -1,
+    });
+
+    return res.status(200).json({
+      success: true,
+      users,
+    });
+  } catch (error) {
+    console.log(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
+}
+
+/*
+  UPDATE USER ROLE
+*/
+async function updateUserRole(req, res) {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+
+    const allowedRoles = ["Admin", "Editor", "Viewer"];
+
+    if (!role || !allowedRoles.includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid role",
+      });
+    }
+
+    // Prevent admin from changing own role
+    if (req.user.id.toString() === id.toString()) {
+      return res.status(400).json({
+        success: false,
+        message: "You cannot change your own role",
+      });
+    }
+
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    user.role = role;
+
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "User role updated successfully",
+
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
     });
   } catch (error) {
     console.log(error);
@@ -296,8 +429,9 @@ module.exports = {
   login,
   getProfile,
   uploadDocument,
-  askQuestion,
   getAllDocuments,
   getDocumentById,
   deleteDocument,
+  getAllUsers,
+  updateUserRole,
 };

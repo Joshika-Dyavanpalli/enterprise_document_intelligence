@@ -29,11 +29,12 @@ const ChatSchema = new mongoose.Schema(
       required: true,
     },
 
-    documentId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Document",
-      required: true,
-    },
+    documents: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Document",
+      },
+    ],
 
     messages: [MessageSchema],
   },

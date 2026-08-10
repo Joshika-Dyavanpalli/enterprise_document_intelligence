@@ -14,14 +14,18 @@ const {
   getAllDocuments,
   getDocumentById,
   deleteDocument,
+  getAllUsers,
+  updateUserRole,
 } = require("../controllers/authController");
 
 // Authentication
 router.post("/signup", signup);
 router.post("/login", login);
+
 router.get("/profile", authMiddleware, getProfile);
 
-// Upload (Admin & Editor)
+// Upload Document
+// Admin + Editor only
 router.post(
   "/upload",
   authMiddleware,
@@ -30,7 +34,8 @@ router.post(
   uploadDocument,
 );
 
-// Ask Question (All Roles)
+// Ask Question
+// Admin + Editor + Viewer
 router.post(
   "/ask",
   authMiddleware,
@@ -38,7 +43,8 @@ router.post(
   askQuestion,
 );
 
-// View Documents (All Roles)
+// View all documents
+// Admin + Editor + Viewer
 router.get(
   "/documents",
   authMiddleware,
@@ -46,6 +52,8 @@ router.get(
   getAllDocuments,
 );
 
+// View single document
+// Admin + Editor + Viewer
 router.get(
   "/document/:id",
   authMiddleware,
@@ -53,12 +61,29 @@ router.get(
   getDocumentById,
 );
 
-// Delete Document (Admin Only)
+// Delete document
+// Admin only
 router.delete(
   "/document/:id",
   authMiddleware,
   roleMiddleware("Admin"),
   deleteDocument,
+);
+
+// User Management
+// Admin only
+router.get(
+  "/users",
+  authMiddleware,
+  roleMiddleware("Admin"),
+  getAllUsers
+);
+
+router.patch(
+  "/users/:id/role",
+  authMiddleware,
+  roleMiddleware("Admin"),
+  updateUserRole
 );
 
 module.exports = router;

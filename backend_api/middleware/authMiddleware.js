@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
+const User = require("../models/User");
 
-function authMiddleware(req, res, next) {
+async function authMiddleware(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
 
@@ -10,14 +11,35 @@ function authMiddleware(req, res, next) {
         message: "Token missing",
       });
     }
-    const Token = authHeader.split(" ")[1];
 
-    const decoded = jwt.verify(Token, process.env.JWT_SECRET);
+    const token = authHeader.split(" ")[1];
 
-    req.user = decoded;
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: "Token missing",
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    const user = await User.findById(decoded.id).select("-password");
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Store the latest user information
+    // from MongoDB in req.user
+    req.user = user;
 
     next();
   } catch (error) {
+    console.log(error);
+
     return res.status(401).json({
       success: false,
       message: "Unauthorized user",
