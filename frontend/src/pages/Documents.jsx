@@ -3,12 +3,12 @@ import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 
 export default function Documents() {
+  const navigate = useNavigate();
+
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [openingChat, setOpeningChat] = useState(false);
+  const [opening, setOpening] = useState(false);
   const [error, setError] = useState("");
-
-  const navigate = useNavigate();
 
   useEffect(() => {
     fetchDocuments();
@@ -27,28 +27,16 @@ export default function Documents() {
       setDocuments(response.data.documents || []);
     } catch (err) {
       console.log(err);
-
-      if (err.response) {
-        setError(err.response.data.message || "Unable to load documents.");
-      } else {
-        setError("Unable to connect to the server.");
-      }
+      setError("Unable to load documents.");
     } finally {
       setLoading(false);
     }
   };
 
-  /*
-    Open an existing document.
-
-    A NEW chat is created and the existing document
-    is attached to that chat.
-
-    The user does NOT need to upload the document again.
-  */
+  // Existing document → NEW chat
   const openChat = async (document) => {
     try {
-      setOpeningChat(true);
+      setOpening(true);
       setError("");
 
       const token = localStorage.getItem("token");
@@ -71,20 +59,14 @@ export default function Documents() {
     } catch (err) {
       console.log(err);
 
-      if (err.response) {
-        setError(err.response.data.message || "Unable to open document chat.");
-      } else {
-        setError("Unable to connect to the server.");
-      }
+      setError(err.response?.data?.message || "Unable to open document chat.");
     } finally {
-      setOpeningChat(false);
+      setOpening(false);
     }
   };
 
   const deleteDocument = async (id) => {
     try {
-      setError("");
-
       const token = localStorage.getItem("token");
 
       await api.delete(`/auth/document/${id}`, {
@@ -97,20 +79,12 @@ export default function Documents() {
     } catch (err) {
       console.log(err);
 
-      if (err.response) {
-        setError(err.response.data.message || "Unable to delete document.");
-      } else {
-        setError("Unable to connect to the server.");
-      }
+      setError(err.response?.data?.message || "Unable to delete document.");
     }
   };
 
   if (loading) {
-    return (
-      <div style={styles.center}>
-        <h2>Loading documents...</h2>
-      </div>
-    );
+    return <div style={styles.center}>Loading documents...</div>;
   }
 
   return (
@@ -120,34 +94,32 @@ export default function Documents() {
 
         <button
           onClick={() => navigate("/dashboard")}
-          style={styles.backButton}
+          style={styles.secondaryButton}
         >
-          Back to Dashboard
+          Back
         </button>
       </div>
 
-      {error && <div style={styles.error}>{error}</div>}
+      {error && <p style={styles.error}>{error}</p>}
 
-      {openingChat && (
-        <div style={styles.loadingMessage}>Opening document chat...</div>
-      )}
+      {opening && <p>Opening document chat...</p>}
 
       {documents.length === 0 ? (
         <div style={styles.empty}>
           <h3>No documents uploaded.</h3>
 
-          <p>Start a new chat from the dashboard to upload a document.</p>
+          <p>Create a new chat first and upload a document there.</p>
 
           <button
             onClick={() => navigate("/dashboard")}
-            style={styles.backButton}
+            style={styles.primaryButton}
           >
             Back to Dashboard
           </button>
         </div>
       ) : (
         documents.map((doc) => (
-          <div key={doc._id} style={styles.documentCard}>
+          <div key={doc._id} style={styles.card}>
             <h3>{doc.originalName}</h3>
 
             <p>
@@ -156,13 +128,10 @@ export default function Documents() {
 
             <button
               onClick={() => openChat(doc)}
-              disabled={openingChat}
-              style={{
-                ...styles.primaryButton,
-                opacity: openingChat ? 0.6 : 1,
-              }}
+              disabled={opening}
+              style={styles.primaryButton}
             >
-              {openingChat ? "Opening..." : "Open Chat"}
+              Open Chat
             </button>
 
             <button
@@ -197,7 +166,7 @@ const styles = {
     marginBottom: "30px",
   },
 
-  documentCard: {
+  card: {
     border: "1px solid #ccc",
     borderRadius: "8px",
     padding: "20px",
@@ -223,7 +192,7 @@ const styles = {
     cursor: "pointer",
   },
 
-  backButton: {
+  secondaryButton: {
     padding: "10px 20px",
     background: "#757575",
     color: "white",
@@ -240,18 +209,7 @@ const styles = {
   },
 
   error: {
-    padding: "12px",
-    marginBottom: "15px",
-    background: "#ffebee",
-    color: "#c62828",
-    borderRadius: "6px",
-  },
-
-  loadingMessage: {
-    padding: "12px",
-    marginBottom: "15px",
-    background: "#e3f2fd",
-    color: "#1565c0",
-    borderRadius: "6px",
+    color: "red",
+    fontWeight: "bold",
   },
 };

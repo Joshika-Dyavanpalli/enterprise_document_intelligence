@@ -6,6 +6,7 @@ import Dashboard from "./pages/Dashboard";
 import Upload from "./pages/Upload";
 import Chat from "./pages/Chat";
 import Documents from "./pages/Documents";
+import Chats from "./pages/Chats";
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
 
       {/* Specific conversation */}
       <Route path="/chat/:chatId" element={<Chat />} />
+      <Route path="/chats" element={<Chats />} />
     </Routes>
   );
 }

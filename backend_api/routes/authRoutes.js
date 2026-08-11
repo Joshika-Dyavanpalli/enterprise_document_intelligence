@@ -10,7 +10,6 @@ const {
   login,
   getProfile,
   uploadDocument,
-  askQuestion,
   getAllDocuments,
   getDocumentById,
   deleteDocument,
@@ -32,15 +31,6 @@ router.post(
   roleMiddleware("Admin", "Editor"),
   upload.single("document"),
   uploadDocument,
-);
-
-// Ask Question
-// Admin + Editor + Viewer
-router.post(
-  "/ask",
-  authMiddleware,
-  roleMiddleware("Admin", "Editor", "Viewer"),
-  askQuestion,
 );
 
 // View all documents
@@ -72,18 +62,13 @@ router.delete(
 
 // User Management
 // Admin only
-router.get(
-  "/users",
-  authMiddleware,
-  roleMiddleware("Admin"),
-  getAllUsers
-);
+router.get("/users", authMiddleware, roleMiddleware("Admin"), getAllUsers);
 
 router.patch(
   "/users/:id/role",
   authMiddleware,
   roleMiddleware("Admin"),
-  updateUserRole
+  updateUserRole,
 );
 
 module.exports = router;

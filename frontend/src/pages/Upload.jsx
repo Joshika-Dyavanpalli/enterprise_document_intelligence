@@ -18,7 +18,7 @@ export default function Upload() {
     setError("");
 
     if (!chatId) {
-      setError("No chat selected. Please start a new chat first.");
+      setError("No chat selected. Please create a new chat first.");
       return;
     }
 
@@ -29,31 +29,26 @@ export default function Upload() {
 
     setLoading(true);
 
-    const formData = new FormData();
-
-    formData.append("document", file);
-    formData.append("chatId", chatId);
-
     try {
       const token = localStorage.getItem("token");
+
+      const formData = new FormData();
+
+      formData.append("document", file);
+      formData.append("chatId", chatId);
 
       const response = await api.post("/auth/upload", formData, {
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data",
         },
       });
 
-      const uploadedDocument = response.data.document;
+      setMessage("Document uploaded and attached to this chat!");
 
-      console.log("Uploaded document:", uploadedDocument);
-
-      setMessage("Document uploaded successfully!");
-
-      // Return to the SAME chat
+      // Return to SAME chat
       setTimeout(() => {
         navigate(`/chat/${chatId}`);
-      }, 800);
+      }, 500);
     } catch (err) {
       console.log(err);
 
@@ -71,7 +66,13 @@ export default function Upload() {
     <div style={styles.container}>
       <h2>Upload Document</h2>
 
-      <p>Upload a document to use in your current conversation.</p>
+      <p>Upload a document to this conversation.</p>
+
+      {!chatId && (
+        <p style={styles.error}>
+          No chat selected. Please create a new chat first.
+        </p>
+      )}
 
       <input
         type="file"
@@ -87,8 +88,8 @@ export default function Upload() {
 
       <button
         onClick={handleUpload}
-        disabled={loading}
-        style={styles.uploadButton}
+        disabled={loading || !chatId}
+        style={styles.primaryButton}
       >
         {loading ? "Uploading..." : "Upload"}
       </button>
@@ -100,13 +101,11 @@ export default function Upload() {
 
       {error && <p style={styles.error}>{error}</p>}
 
-      <br />
-
       <button
         onClick={() =>
           chatId ? navigate(`/chat/${chatId}`) : navigate("/dashboard")
         }
-        style={styles.backButton}
+        style={styles.secondaryButton}
       >
         Back
       </button>
@@ -120,8 +119,8 @@ const styles = {
     textAlign: "center",
   },
 
-  uploadButton: {
-    padding: "10px 25px",
+  primaryButton: {
+    padding: "12px 25px",
     background: "#1976d2",
     color: "white",
     border: "none",
@@ -129,8 +128,8 @@ const styles = {
     cursor: "pointer",
   },
 
-  backButton: {
-    padding: "10px 25px",
+  secondaryButton: {
+    padding: "10px 20px",
     background: "#757575",
     color: "white",
     border: "none",

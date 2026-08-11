@@ -2,30 +2,22 @@ const Chat = require("../models/Chat");
 const Document = require("../models/documents");
 const { askAI } = require("../services/aiService");
 
-/*
-  CREATE NEW CHAT
+// ======================================================
+// CREATE NEW CHAT
+// ======================================================
 
-  documentId is optional.
-
-  If documentId is provided:
-  - verify document belongs to logged-in user
-  - attach document to the new chat
-
-  This supports:
-
-  My Documents → Open Chat
-*/
 async function createNewChat(req, res) {
   try {
     const { documentId } = req.body;
 
     const chatData = {
       userId: req.user.id,
+      title: "New Chat",
       documents: [],
       messages: [],
     };
 
-    // If an existing document was selected
+    // Attach existing document if provided
     if (documentId) {
       const document = await Document.findOne({
         _id: documentId,
@@ -39,7 +31,8 @@ async function createNewChat(req, res) {
         });
       }
 
-      chatData.documents.push(documentId);
+      chatData.documents.push(document._id);
+      chatData.title = document.originalName;
     }
 
     const chat = await Chat.create(chatData);
@@ -49,12 +42,13 @@ async function createNewChat(req, res) {
       message: "New chat created",
       chat: {
         _id: chat._id,
+        title: chat.title,
         documents: chat.documents,
         messages: chat.messages,
       },
     });
   } catch (error) {
-    console.log(error);
+    console.log("CREATE CHAT ERROR:", error);
 
     return res.status(500).json({
       success: false,
@@ -63,108 +57,38 @@ async function createNewChat(req, res) {
   }
 }
 
-/*
-  ASK QUESTION
+// ======================================================
+// GET ALL CHATS
+// ======================================================
 
-  The question belongs to the specific chatId sent
-  by the frontend.
-
-  We DO NOT search for the latest chat.
-*/
-async function askQuestion(req, res) {
+async function getAllChats(req, res) {
   try {
-    const { chatId, documentId, question } = req.body;
-
-    if (!chatId || !documentId || !question) {
-      return res.status(400).json({
-        success: false,
-        message: "Chat ID, Document ID and Question are required",
-      });
-    }
-
-    // Find the specific chat
-    const chat = await Chat.findOne({
-      _id: chatId,
+    const chats = await Chat.find({
       userId: req.user.id,
-    });
-
-    if (!chat) {
-      return res.status(404).json({
-        success: false,
-        message: "Chat not found",
+    })
+      .populate("documents", "originalName fileType")
+      .sort({
+        updatedAt: -1,
       });
-    }
-
-    // Verify document belongs to logged-in user
-    const document = await Document.findOne({
-      _id: documentId,
-      userId: req.user.id,
-    });
-
-    if (!document) {
-      return res.status(404).json({
-        success: false,
-        message: "Document not found",
-      });
-    }
-
-    // Make sure document is attached to this chat
-    const documentAlreadyAdded = chat.documents.some(
-      (id) => id.toString() === documentId.toString(),
-    );
-
-    if (!documentAlreadyAdded) {
-      return res.status(400).json({
-        success: false,
-        message: "This document is not attached to this chat",
-      });
-    }
-
-    // Ask AI
-    const aiResponse = await askAI(
-      document.vectorPath,
-      document.chunksPath,
-      question,
-    );
-
-    // Save user question
-    chat.messages.push({
-      role: "user",
-      content: question,
-    });
-
-    // Save AI answer
-    chat.messages.push({
-      role: "assistant",
-      content: aiResponse.answer,
-    });
-
-    await chat.save();
 
     return res.status(200).json({
       success: true,
-      answer: aiResponse.answer,
-      messages: chat.messages,
-      chatId: chat._id,
+      chats,
     });
   } catch (error) {
-    console.log(error);
+    console.log("GET ALL CHATS ERROR:", error);
 
     return res.status(500).json({
       success: false,
-      message: "Unable to process question",
+      message: "Unable to load chats",
     });
   }
 }
 
-/*
-  GET ONE SPECIFIC CHAT
+// ======================================================
+// GET ONE CHAT
+// ======================================================
 
-  Important:
-  We return chatId requested by frontend.
-
-  We DO NOT return the user's latest chat.
-*/
 async function getChatHistory(req, res) {
   try {
     const { chatId } = req.params;
@@ -183,12 +107,13 @@ async function getChatHistory(req, res) {
 
     return res.status(200).json({
       success: true,
+      chatId: chat._id,
+      title: chat.title,
       messages: chat.messages,
       documents: chat.documents,
-      chatId: chat._id,
     });
   } catch (error) {
-    console.log(error);
+    console.log("GET CHAT ERROR:", error);
 
     return res.status(500).json({
       success: false,
@@ -197,8 +122,107 @@ async function getChatHistory(req, res) {
   }
 }
 
+// ======================================================
+// ASK QUESTION
+// ======================================================
+
+async function askQuestion(req, res) {
+  try {
+    const { chatId, documentId, question } = req.body;
+
+    if (!chatId || !documentId || !question) {
+      return res.status(400).json({
+        success: false,
+        message: "Chat ID, Document ID and Question are required",
+      });
+    }
+
+    // Find EXACT chat
+    const chat = await Chat.findOne({
+      _id: chatId,
+      userId: req.user.id,
+    });
+
+    if (!chat) {
+      return res.status(404).json({
+        success: false,
+        message: "Chat not found",
+      });
+    }
+
+    // Find document
+    const document = await Document.findOne({
+      _id: documentId,
+      userId: req.user.id,
+    });
+
+    if (!document) {
+      return res.status(404).json({
+        success: false,
+        message: "Document not found",
+      });
+    }
+
+    // Make sure document belongs to this chat
+    const attached = chat.documents.some(
+      (id) => id.toString() === documentId.toString(),
+    );
+
+    if (!attached) {
+      return res.status(400).json({
+        success: false,
+        message: "Document is not attached to this chat",
+      });
+    }
+
+    // Ask AI
+    const aiResponse = await askAI(
+      document.vectorPath,
+      document.chunksPath,
+      question.trim(),
+    );
+
+    // Save user message
+    chat.messages.push({
+      role: "user",
+      content: question.trim(),
+    });
+
+    // Save AI message
+    chat.messages.push({
+      role: "assistant",
+      content: aiResponse.answer,
+    });
+
+    // Set title from first question
+    if (chat.title === "New Chat" && chat.messages.length >= 2) {
+      chat.title =
+        question.trim().length > 40
+          ? question.trim().substring(0, 40) + "..."
+          : question.trim();
+    }
+
+    await chat.save();
+
+    return res.status(200).json({
+      success: true,
+      chatId: chat._id,
+      answer: aiResponse.answer,
+      messages: chat.messages,
+    });
+  } catch (error) {
+    console.log("ASK QUESTION ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to process question",
+    });
+  }
+}
+
 module.exports = {
   createNewChat,
-  askQuestion,
+  getAllChats,
   getChatHistory,
+  askQuestion,
 };

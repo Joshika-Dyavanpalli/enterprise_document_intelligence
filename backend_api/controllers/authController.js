@@ -1,8 +1,8 @@
 const fs = require("fs");
 
 const Document = require("../models/documents");
-const Chat = require("../models/Chat");
 const User = require("../models/User.js");
+const Chat = require("../models/Chat.js");
 
 const { uploadToAI } = require("../services/aiService");
 
@@ -155,7 +155,14 @@ function getProfile(req, res) {
 */
 async function uploadDocument(req, res) {
   try {
-    const { chatId } = req.body;
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "No file uploaded",
+      });
+    }
+
+    const chatId = req.body.chatId;
 
     if (!chatId) {
       return res.status(400).json({
@@ -164,14 +171,7 @@ async function uploadDocument(req, res) {
       });
     }
 
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: "No file uploaded",
-      });
-    }
-
-    // Check chat belongs to logged-in user
+    // Verify chat belongs to user
     const chat = await Chat.findOne({
       _id: chatId,
       userId: req.user.id,
@@ -184,7 +184,7 @@ async function uploadDocument(req, res) {
       });
     }
 
-    // Send file to AI service
+    // Upload to AI service
     const aiResponse = await uploadToAI(req.file.path, req.file.originalname);
 
     // Save document
@@ -203,16 +203,21 @@ async function uploadDocument(req, res) {
     // Attach document to THIS chat
     chat.documents.push(savedDocument._id);
 
+    // Give chat a useful title
+    if (chat.title === "New Chat") {
+      chat.title = savedDocument.originalName;
+    }
+
     await chat.save();
 
     return res.status(200).json({
       success: true,
-      message: "Document uploaded successfully",
+      message: "Document uploaded and attached to chat",
       document: savedDocument,
       chatId: chat._id,
     });
   } catch (error) {
-    console.log(error);
+    console.log("UPLOAD DOCUMENT ERROR:", error);
 
     return res.status(500).json({
       success: false,

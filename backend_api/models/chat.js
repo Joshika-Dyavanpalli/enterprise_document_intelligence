@@ -18,7 +18,9 @@ const MessageSchema = new mongoose.Schema(
       default: Date.now,
     },
   },
-  { _id: false },
+  {
+    _id: false,
+  },
 );
 
 const ChatSchema = new mongoose.Schema(

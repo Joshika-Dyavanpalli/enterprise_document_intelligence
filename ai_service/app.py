@@ -190,19 +190,29 @@ async def query_document(request: QueryRequest):
 
     from vector_service import load_vector_store
     from embeddings import model
+    import re
 
-    # Load FAISS index and chunks
+    # --------------------------------------------------
+    # LOAD VECTOR STORE
+    # --------------------------------------------------
+
     index, chunks = load_vector_store(
         request.vector_path,
         request.chunks_path
     )
 
-    # Create embedding for question
+    # --------------------------------------------------
+    # CREATE QUESTION EMBEDDING
+    # --------------------------------------------------
+
     query_embedding = model.encode(
         request.question
     )
 
-    # Search for relevant chunks
+    # --------------------------------------------------
+    # SEARCH RELEVANT CHUNKS
+    # --------------------------------------------------
+
     D, I = index.search(
         query_embedding.reshape(1, -1),
         5
@@ -218,18 +228,49 @@ async def query_document(request: QueryRequest):
                 chunks[idx]
             )
 
-    # Combine retrieved chunks
+    # --------------------------------------------------
+    # EXTRACT SOURCE PAGES
+    # --------------------------------------------------
+
+    sources = []
+
+    for chunk in relevant_chunks:
+
+        page_matches = re.findall(
+            r"\[Page (\d+)\]",
+            chunk
+        )
+
+        for page in page_matches:
+
+            page_number = int(page)
+
+            if page_number not in sources:
+                sources.append(page_number)
+
+    sources.sort()
+
+    # --------------------------------------------------
+    # COMBINE CONTEXT
+    # --------------------------------------------------
+
     context = "\n\n".join(
         relevant_chunks
     )
 
-    # Build prompt
+    # --------------------------------------------------
+    # BUILD PROMPT
+    # --------------------------------------------------
+
     prompt = build_prompt(
         context,
         request.question
     )
 
-    # Send request to Ollama
+    # --------------------------------------------------
+    # SEND TO OLLAMA
+    # --------------------------------------------------
+
     response = requests.post(
         "http://localhost:11434/api/generate",
         json={
@@ -239,10 +280,22 @@ async def query_document(request: QueryRequest):
         }
     )
 
+    response.raise_for_status()
+
     result = response.json()
+
+    # --------------------------------------------------
+    # RETURN ANSWER + CITATIONS
+    # --------------------------------------------------
 
     return {
         "success": True,
         "answer": result["response"],
-        "chunks_used": len(relevant_chunks)
+        "chunks_used": len(relevant_chunks),
+        "sources": [
+            {
+                "page": page
+            }
+            for page in sources
+        ]
     }

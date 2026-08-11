@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 
@@ -5,6 +6,9 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   const user = JSON.parse(localStorage.getItem("user"));
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -16,6 +20,9 @@ export default function Dashboard() {
 
   const handleNewChat = async () => {
     try {
+      setLoading(true);
+      setError("");
+
       const token = localStorage.getItem("token");
 
       const response = await api.post(
@@ -33,13 +40,14 @@ export default function Dashboard() {
       console.log(err);
 
       if (err.response) {
-        alert(err.response.data.message || "Unable to create new chat.");
+        setError(err.response.data.message || "Unable to create new chat.");
       } else {
-        alert("Unable to connect to the server.");
+        setError("Unable to connect to the server.");
       }
+    } finally {
+      setLoading(false);
     }
   };
-
 
   return (
     <div style={styles.container}>
@@ -53,17 +61,26 @@ export default function Dashboard() {
 
       <br />
 
-      {/* NEW CHAT */}
+      {/* Error message */}
+      {error && <div style={styles.error}>{error}</div>}
 
-      <button onClick={handleNewChat} style={styles.button}>
-        + New Chat
+      {/* NEW CHAT */}
+      <button
+        onClick={handleNewChat}
+        disabled={loading}
+        style={{
+          ...styles.button,
+          background: loading ? "#9e9e9e" : "#1976d2",
+          cursor: loading ? "not-allowed" : "pointer",
+        }}
+      >
+        {loading ? "Creating Chat..." : "+ New Chat"}
       </button>
 
       <br />
       <br />
 
       {/* MY DOCUMENTS */}
-
       <button onClick={() => navigate("/documents")} style={styles.button}>
         My Documents
       </button>
@@ -72,7 +89,6 @@ export default function Dashboard() {
       <br />
 
       {/* LOGOUT */}
-
       <button onClick={handleLogout} style={styles.logoutButton}>
         Logout
       </button>
@@ -106,5 +122,16 @@ const styles = {
     border: "none",
     borderRadius: "5px",
     fontSize: "16px",
+  },
+
+  error: {
+    width: "285px",
+    margin: "0 auto 20px auto",
+    padding: "12px",
+    background: "#ffebee",
+    color: "#c62828",
+    border: "1px solid #ef9a9a",
+    borderRadius: "6px",
+    fontWeight: "bold",
   },
 };
