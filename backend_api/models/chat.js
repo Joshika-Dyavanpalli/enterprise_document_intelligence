@@ -31,6 +31,11 @@ const ChatSchema = new mongoose.Schema(
       required: true,
     },
 
+    title: {
+      type: String,
+      default: "New Chat",
+    },
+
     documents: [
       {
         type: mongoose.Schema.Types.ObjectId,

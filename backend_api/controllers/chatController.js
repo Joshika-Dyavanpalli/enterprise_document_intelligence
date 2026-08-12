@@ -40,6 +40,7 @@ async function createNewChat(req, res) {
     return res.status(201).json({
       success: true,
       message: "New chat created",
+
       chat: {
         _id: chat._id,
         title: chat.title,
@@ -137,7 +138,7 @@ async function askQuestion(req, res) {
       });
     }
 
-    // Find EXACT chat
+    // Find exact chat belonging to logged-in user
     const chat = await Chat.findOne({
       _id: chatId,
       userId: req.user.id,
@@ -150,7 +151,7 @@ async function askQuestion(req, res) {
       });
     }
 
-    // Find document
+    // Find document belonging to logged-in user
     const document = await Document.findOne({
       _id: documentId,
       userId: req.user.id,
@@ -188,14 +189,14 @@ async function askQuestion(req, res) {
       content: question.trim(),
     });
 
-    // Save AI message
+    // Save assistant message
     chat.messages.push({
       role: "assistant",
       content: aiResponse.answer,
     });
 
-    // Set title from first question
-    if (chat.title === "New Chat" && chat.messages.length >= 2) {
+    // Change title based on first question
+    if (chat.title === "New Chat") {
       chat.title =
         question.trim().length > 40
           ? question.trim().substring(0, 40) + "..."

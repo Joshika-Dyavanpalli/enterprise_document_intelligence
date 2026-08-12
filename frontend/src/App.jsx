@@ -7,6 +7,8 @@ import Upload from "./pages/Upload";
 import Chat from "./pages/Chat";
 import Documents from "./pages/Documents";
 import Chats from "./pages/Chats";
+import Profile from "./pages/Profile";
+import UserManagement from "./pages/UserManagement";
 
 function App() {
   return (
@@ -21,12 +23,15 @@ function App() {
 
       <Route path="/documents" element={<Documents />} />
 
-      {/* Chat without a selected conversation */}
       <Route path="/chat" element={<Chat />} />
 
-      {/* Specific conversation */}
       <Route path="/chat/:chatId" element={<Chat />} />
+
       <Route path="/chats" element={<Chats />} />
+
+      <Route path="/profile" element={<Profile />} />
+
+      <Route path="/users" element={<UserManagement />} />
     </Routes>
   );
 }

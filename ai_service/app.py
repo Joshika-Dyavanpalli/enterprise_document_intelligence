@@ -8,28 +8,43 @@ import pytesseract
 from pydantic import BaseModel
 import requests
 import uuid
+import re
 
-from chunking import chunk_text
 from embeddings import generate_embeddings
-from faiss_index import FAISSIndex
-from retriever import retrieve_chunks
 from prompt import build_prompt
-from vector_service import create_vector_store
+from vector_service import create_vector_store, load_vector_store
 
 
-# Tesseract OCR path
+# --------------------------------------------------
+# TESSERACT OCR PATH
+# --------------------------------------------------
+
 pytesseract.pytesseract.tesseract_cmd = (
     r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 )
 
 
+# --------------------------------------------------
+# FASTAPI
+# --------------------------------------------------
+
 app = FastAPI()
 
 
+# --------------------------------------------------
+# FOLDERS
+# --------------------------------------------------
+
 UPLOAD_FOLDER = "uploads"
+VECTOR_FOLDER = "vector_store"
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(VECTOR_FOLDER, exist_ok=True)
 
+
+# --------------------------------------------------
+# HOME
+# --------------------------------------------------
 
 @app.get("/")
 def home():
@@ -38,23 +53,36 @@ def home():
     }
 
 
+# ==================================================
+# UPLOAD DOCUMENT
+# ==================================================
+
 @app.post("/upload")
-async def upload_document(file: UploadFile = File(...)):
+async def upload_document(
+    file: UploadFile = File(...)
+):
 
     file_path = os.path.join(
         UPLOAD_FOLDER,
         file.filename
     )
 
-    # Save uploaded file
+    # --------------------------------------------------
+    # SAVE UPLOADED FILE
+    # --------------------------------------------------
+
     with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+        shutil.copyfileobj(
+            file.file,
+            buffer
+        )
 
     extracted_text = ""
 
-    # --------------------------------------------------
+
+    # ==================================================
     # PDF
-    # --------------------------------------------------
+    # ==================================================
 
     if file.filename.lower().endswith(".pdf"):
 
@@ -62,23 +90,38 @@ async def upload_document(file: UploadFile = File(...)):
 
         for page_number, page in enumerate(pdf):
 
-            # First try normal text extraction
+            actual_page_number = page_number + 1
+
+            # --------------------------------------------------
+            # FIRST TRY NORMAL TEXT EXTRACTION
+            # --------------------------------------------------
+
             page_text = page.get_text()
 
             if page_text.strip():
 
+                print(
+                    f"Text extracted from PDF page "
+                    f"{actual_page_number}"
+                )
+
                 extracted_text += (
-                    f"\n--- Page {page_number + 1} ---\n"
+                    f"\n--- Page {actual_page_number} ---\n"
                 )
 
                 extracted_text += page_text
 
+
+            # --------------------------------------------------
+            # OCR FALLBACK
+            # --------------------------------------------------
+
             else:
 
-                # No text found → scanned/image PDF
                 print(
-                    f"No text found on page {page_number + 1}. "
-                    "Running OCR..."
+                    f"No text found on PDF page "
+                    f"{actual_page_number}. "
+                    f"Running OCR..."
                 )
 
                 pix = page.get_pixmap()
@@ -86,7 +129,7 @@ async def upload_document(file: UploadFile = File(...)):
                 image = Image.frombytes(
                     "RGB",
                     [pix.width, pix.height],
-                    pix.samples,
+                    pix.samples
                 )
 
                 ocr_text = pytesseract.image_to_string(
@@ -94,20 +137,23 @@ async def upload_document(file: UploadFile = File(...)):
                 )
 
                 extracted_text += (
-                    f"\n--- Page {page_number + 1} ---\n"
+                    f"\n--- Page {actual_page_number} ---\n"
                 )
 
                 extracted_text += ocr_text
 
         pdf.close()
 
-    # --------------------------------------------------
+
+    # ==================================================
     # DOCX
-    # --------------------------------------------------
+    # ==================================================
 
     elif file.filename.lower().endswith(".docx"):
 
         doc = Document(file_path)
+
+        extracted_text += "\n--- Page 1 ---\n"
 
         for paragraph in doc.paragraphs:
 
@@ -115,9 +161,10 @@ async def upload_document(file: UploadFile = File(...)):
                 paragraph.text + "\n"
             )
 
-    # --------------------------------------------------
+
+    # ==================================================
     # IMAGE
-    # --------------------------------------------------
+    # ==================================================
 
     elif (
         file.filename.lower().endswith(".png")
@@ -125,15 +172,24 @@ async def upload_document(file: UploadFile = File(...)):
         or file.filename.lower().endswith(".jpeg")
     ):
 
+        print("Running OCR on image...")
+
         image = Image.open(file_path)
 
-        extracted_text = pytesseract.image_to_string(
+        ocr_text = pytesseract.image_to_string(
             image
         )
 
-    # --------------------------------------------------
-    # Unsupported file
-    # --------------------------------------------------
+        extracted_text += (
+            "\n--- Page 1 ---\n"
+        )
+
+        extracted_text += ocr_text
+
+
+    # ==================================================
+    # UNSUPPORTED FILE
+    # ==================================================
 
     else:
 
@@ -142,27 +198,43 @@ async def upload_document(file: UploadFile = File(...)):
             "message": "Unsupported file type."
         }
 
-    # --------------------------------------------------
-    # Check whether text was extracted
-    # --------------------------------------------------
+
+    # ==================================================
+    # CHECK EXTRACTION
+    # ==================================================
 
     if not extracted_text.strip():
 
         return {
             "success": False,
-            "message": "Unable to extract text from this document."
+            "message": (
+                "Unable to extract text from this document."
+            )
         }
 
-    # --------------------------------------------------
-    # Create document vector store
-    # --------------------------------------------------
+
+    # ==================================================
+    # CREATE DOCUMENT ID
+    # ==================================================
 
     document_id = str(uuid.uuid4())
 
-    index_path, chunks_path, chunk_count = create_vector_store(
-        document_id,
-        extracted_text
+
+    # ==================================================
+    # CREATE VECTOR STORE
+    # ==================================================
+
+    index_path, chunks_path, chunk_count = (
+        create_vector_store(
+            document_id,
+            extracted_text
+        )
     )
+
+
+    # ==================================================
+    # RETURN UPLOAD RESULT
+    # ==================================================
 
     return {
         "success": True,
@@ -174,9 +246,9 @@ async def upload_document(file: UploadFile = File(...)):
     }
 
 
-# ------------------------------------------------------
-# Query
-# ------------------------------------------------------
+# ==================================================
+# QUERY MODEL
+# ==================================================
 
 class QueryRequest(BaseModel):
 
@@ -185,12 +257,14 @@ class QueryRequest(BaseModel):
     question: str
 
 
-@app.post("/query")
-async def query_document(request: QueryRequest):
+# ==================================================
+# QUERY DOCUMENT
+# ==================================================
 
-    from vector_service import load_vector_store
-    from embeddings import model
-    import re
+@app.post("/query")
+async def query_document(
+    request: QueryRequest
+):
 
     # --------------------------------------------------
     # LOAD VECTOR STORE
@@ -201,26 +275,31 @@ async def query_document(request: QueryRequest):
         request.chunks_path
     )
 
+
     # --------------------------------------------------
     # CREATE QUESTION EMBEDDING
     # --------------------------------------------------
+
+    from embeddings import model
 
     query_embedding = model.encode(
         request.question
     )
 
+
     # --------------------------------------------------
     # SEARCH RELEVANT CHUNKS
     # --------------------------------------------------
 
-    D, I = index.search(
+    distances, indices = index.search(
         query_embedding.reshape(1, -1),
         5
     )
 
+
     relevant_chunks = []
 
-    for idx in I[0]:
+    for idx in indices[0]:
 
         if idx != -1:
 
@@ -228,8 +307,9 @@ async def query_document(request: QueryRequest):
                 chunks[idx]
             )
 
+
     # --------------------------------------------------
-    # EXTRACT SOURCE PAGES
+    # EXTRACT REAL SOURCE PAGES
     # --------------------------------------------------
 
     sources = []
@@ -246,9 +326,14 @@ async def query_document(request: QueryRequest):
             page_number = int(page)
 
             if page_number not in sources:
-                sources.append(page_number)
+
+                sources.append(
+                    page_number
+                )
+
 
     sources.sort()
+
 
     # --------------------------------------------------
     # COMBINE CONTEXT
@@ -258,6 +343,7 @@ async def query_document(request: QueryRequest):
         relevant_chunks
     )
 
+
     # --------------------------------------------------
     # BUILD PROMPT
     # --------------------------------------------------
@@ -266,6 +352,7 @@ async def query_document(request: QueryRequest):
         context,
         request.question
     )
+
 
     # --------------------------------------------------
     # SEND TO OLLAMA
@@ -282,15 +369,63 @@ async def query_document(request: QueryRequest):
 
     response.raise_for_status()
 
-    result = response.json()
 
     # --------------------------------------------------
-    # RETURN ANSWER + CITATIONS
+    # GET LLM RESPONSE
+    # --------------------------------------------------
+
+    result = response.json()
+
+    answer = result["response"].strip()
+
+
+    # --------------------------------------------------
+    # REMOVE ANY PAGE CITATIONS GENERATED BY LLM
+    # --------------------------------------------------
+
+    answer = re.sub(
+        r"\s*\[Page\s+\d+\]",
+        "",
+        answer
+    ).strip()
+
+
+    # --------------------------------------------------
+    # CHECK IF ANSWER WAS NOT FOUND
+    # --------------------------------------------------
+
+    not_found_message = (
+        "I couldn't find that information in the document."
+    )
+
+
+    # --------------------------------------------------
+    # ADD REAL SOURCE CITATIONS
+    # --------------------------------------------------
+
+    if (
+        answer
+        and answer != not_found_message
+        and sources
+    ):
+
+        citation = " ".join(
+            f"[Page {page}]"
+            for page in sources
+        )
+
+        answer = (
+            f"{answer} {citation}"
+        )
+
+
+    # --------------------------------------------------
+    # RETURN ANSWER
     # --------------------------------------------------
 
     return {
         "success": True,
-        "answer": result["response"],
+        "answer": answer,
         "chunks_used": len(relevant_chunks),
         "sources": [
             {

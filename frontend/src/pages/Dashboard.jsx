@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
+import Layout from "../components/Layout";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -9,14 +10,6 @@ export default function Dashboard() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    localStorage.removeItem("document");
-
-    navigate("/");
-  };
 
   const handleNewChat = async () => {
     try {
@@ -50,88 +43,211 @@ export default function Dashboard() {
   };
 
   return (
-    <div style={styles.container}>
-      <h1>Enterprise Document Intelligence</h1>
+    <Layout>
+      <div style={styles.container}>
+        {/* PAGE HEADER */}
+        <div style={styles.header}>
+          <h1 style={styles.title}>Dashboard</h1>
 
-      <h3>Welcome, {user?.name || "User"} 👋</h3>
+          <p style={styles.subtitle}>Enterprise Document Intelligence</p>
+        </div>
 
-      <p>
-        <strong>Role:</strong> {user?.role || "Viewer"}
-      </p>
+        {/* WELCOME CARD */}
+        <div style={styles.welcomeCard}>
+          <div>
+            <h2 style={styles.welcomeTitle}>Welcome, {user?.name || "User"}</h2>
 
-      <br />
+            <p style={styles.welcomeText}>
+              Manage your documents and start intelligent conversations with
+              your files.
+            </p>
+          </div>
 
-      {/* Error message */}
-      {error && <div style={styles.error}>{error}</div>}
+          <div style={styles.roleBadge}>{user?.role || "Viewer"}</div>
+        </div>
 
-      {/* NEW CHAT */}
-      <button
-        onClick={handleNewChat}
-        disabled={loading}
-        style={{
-          ...styles.button,
-          background: loading ? "#9e9e9e" : "#1976d2",
-          cursor: loading ? "not-allowed" : "pointer",
-        }}
-      >
-        {loading ? "Creating Chat..." : "+ New Chat"}
-      </button>
+        {/* ERROR */}
+        {error && <div style={styles.error}>{error}</div>}
 
-      <br />
-      <br />
+        {/* ACTION CARDS */}
+        <div style={styles.grid}>
+          {/* NEW CHAT */}
+          <div style={styles.card}>
+            <div style={styles.iconBox}>+</div>
 
-      {/* MY DOCUMENTS */}
-      <button onClick={() => navigate("/documents")} style={styles.button}>
-        My Documents
-      </button>
+            <h3 style={styles.cardTitle}>Start a New Chat</h3>
 
-      <br />
-      <br />
+            <p style={styles.cardText}>
+              Create a conversation and upload a document to start asking
+              questions.
+            </p>
 
-      {/* LOGOUT */}
-      <button onClick={handleLogout} style={styles.logoutButton}>
-        Logout
-      </button>
-    </div>
+            <button
+              onClick={handleNewChat}
+              disabled={loading}
+              style={{
+                ...styles.primaryButton,
+                opacity: loading ? 0.6 : 1,
+                cursor: loading ? "not-allowed" : "pointer",
+              }}
+            >
+              {loading ? "Creating Chat..." : "New Chat"}
+            </button>
+          </div>
+
+          {/* DOCUMENTS */}
+          <div style={styles.card}>
+            <div style={styles.iconBox}>▣</div>
+
+            <h3 style={styles.cardTitle}>My Documents</h3>
+
+            <p style={styles.cardText}>
+              View your uploaded documents and continue conversations with them.
+            </p>
+
+            <button
+              onClick={() => navigate("/documents")}
+              style={styles.secondaryButton}
+            >
+              View Documents
+            </button>
+          </div>
+        </div>
+      </div>
+    </Layout>
   );
 }
 
 const styles = {
   container: {
-    padding: "40px",
-    textAlign: "center",
+    maxWidth: "1100px",
+    margin: "0 auto",
   },
 
-  button: {
-    width: "285px",
-    padding: "12px",
-    cursor: "pointer",
-    background: "#1976d2",
-    color: "#fff",
-    border: "none",
-    borderRadius: "5px",
-    fontSize: "16px",
+  header: {
+    marginBottom: "28px",
   },
 
-  logoutButton: {
-    width: "285px",
-    padding: "12px",
-    cursor: "pointer",
-    background: "#d32f2f",
-    color: "#fff",
+  title: {
+    margin: 0,
+    fontSize: "28px",
+    fontWeight: "650",
+    color: "#171717",
+    letterSpacing: "-0.5px",
+  },
+
+  subtitle: {
+    margin: "6px 0 0",
+    color: "#6b7280",
+    fontSize: "14px",
+  },
+
+  welcomeCard: {
+    background: "#ffffff",
+    border: "1px solid #e5e7eb",
+    borderRadius: "10px",
+    padding: "25px",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "22px",
+    boxShadow: "0 4px 18px rgba(0, 0, 0, 0.04)",
+  },
+
+  welcomeTitle: {
+    margin: 0,
+    fontSize: "20px",
+    fontWeight: "600",
+    color: "#171717",
+  },
+
+  welcomeText: {
+    margin: "7px 0 0",
+    color: "#6b7280",
+    fontSize: "14px",
+  },
+
+  roleBadge: {
+    background: "#f3f4f6",
+    color: "#374151",
+    padding: "7px 13px",
+    borderRadius: "20px",
+    fontSize: "12px",
+    fontWeight: "600",
+  },
+
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+    gap: "20px",
+  },
+
+  card: {
+    background: "#ffffff",
+    border: "1px solid #e5e7eb",
+    borderRadius: "10px",
+    padding: "25px",
+    boxShadow: "0 4px 18px rgba(0, 0, 0, 0.04)",
+  },
+
+  iconBox: {
+    width: "42px",
+    height: "42px",
+    borderRadius: "8px",
+    background: "#111111",
+    color: "#ffffff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "20px",
+    marginBottom: "18px",
+  },
+
+  cardTitle: {
+    margin: 0,
+    fontSize: "17px",
+    fontWeight: "600",
+    color: "#171717",
+  },
+
+  cardText: {
+    color: "#6b7280",
+    fontSize: "13px",
+    lineHeight: "1.6",
+    minHeight: "42px",
+    margin: "8px 0 20px",
+  },
+
+  primaryButton: {
+    width: "100%",
+    padding: "11px 16px",
+    background: "#111111",
+    color: "#ffffff",
     border: "none",
-    borderRadius: "5px",
-    fontSize: "16px",
+    borderRadius: "6px",
+    fontSize: "13px",
+    fontWeight: "500",
+  },
+
+  secondaryButton: {
+    width: "100%",
+    padding: "11px 16px",
+    background: "#ffffff",
+    color: "#111111",
+    border: "1px solid #d1d5db",
+    borderRadius: "6px",
+    fontSize: "13px",
+    fontWeight: "500",
+    cursor: "pointer",
   },
 
   error: {
-    width: "285px",
-    margin: "0 auto 20px auto",
-    padding: "12px",
-    background: "#ffebee",
-    color: "#c62828",
-    border: "1px solid #ef9a9a",
-    borderRadius: "6px",
-    fontWeight: "bold",
+    marginBottom: "20px",
+    padding: "11px 13px",
+    background: "#fef2f2",
+    color: "#dc2626",
+    border: "1px solid #fecaca",
+    borderRadius: "7px",
+    fontSize: "13px",
   },
 };

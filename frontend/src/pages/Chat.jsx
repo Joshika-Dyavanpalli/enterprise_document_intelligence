@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../services/api";
+import Layout from "../components/Layout";
 
 export default function Chat() {
   const { chatId } = useParams();
@@ -100,9 +101,7 @@ export default function Chat() {
 
       console.log("ASK RESPONSE:", response.data);
 
-      // IMPORTANT:
-      // Stay in the SAME chat.
-      // Do NOT create another chat here.
+      // Stay in the SAME chat
       setMessages(response.data.messages || []);
 
       setQuestion("");
@@ -132,18 +131,20 @@ export default function Chat() {
 
   if (!chatId) {
     return (
-      <div style={styles.center}>
-        <h2>No Chat Selected</h2>
+      <Layout>
+        <div style={styles.center}>
+          <h2>No Chat Selected</h2>
 
-        <p>Please create a new chat from the dashboard.</p>
+          <p>Please create a new chat from the dashboard.</p>
 
-        <button
-          onClick={() => navigate("/dashboard")}
-          style={styles.secondaryButton}
-        >
-          Dashboard
-        </button>
-      </div>
+          <button
+            onClick={() => navigate("/dashboard")}
+            style={styles.secondaryButton}
+          >
+            Dashboard
+          </button>
+        </div>
+      </Layout>
     );
   }
 
@@ -152,7 +153,11 @@ export default function Chat() {
   // ==========================================
 
   if (loadingChat) {
-    return <div style={styles.center}>Loading chat...</div>;
+    return (
+      <Layout>
+        <div style={styles.center}>Loading chat...</div>
+      </Layout>
+    );
   }
 
   // ==========================================
@@ -160,192 +165,366 @@ export default function Chat() {
   // ==========================================
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <h2>Chat</h2>
+    <Layout>
+      <div style={styles.container}>
+        {/* HEADER */}
 
-        <button
-          onClick={() => navigate("/dashboard")}
-          style={styles.secondaryButton}
-        >
-          Dashboard
-        </button>
-      </div>
+        <div style={styles.header}>
+          <div>
+            <div style={styles.pageLabel}>DOCUMENT CHAT</div>
 
-      {/* DOCUMENT */}
+            <h1 style={styles.title}>Ask anything about your document</h1>
 
-      {documents.length > 0 ? (
-        <div style={styles.documentBox}>
-          <strong>Document:</strong> {documents[0].originalName}
-        </div>
-      ) : (
-        <div style={styles.uploadBox}>
-          <h3>No document attached</h3>
-
-          <p>Upload a document to this chat before asking questions.</p>
+            <p style={styles.subtitle}>
+              Get answers grounded in your uploaded document.
+            </p>
+          </div>
 
           <button
-            onClick={() => navigate(`/upload?chatId=${chatId}`)}
-            style={styles.primaryButton}
+            onClick={() => navigate("/dashboard")}
+            style={styles.dashboardButton}
           >
-            Upload Document
+            ← Dashboard
           </button>
         </div>
-      )}
 
-      {/* ERROR */}
+        {/* DOCUMENT */}
 
-      {error && <div style={styles.error}>{error}</div>}
+        {documents.length > 0 ? (
+          <div style={styles.documentBox}>
+            <div style={styles.documentIcon}>📄</div>
 
-      {/* MESSAGES */}
+            <div>
+              <div style={styles.documentLabel}>CURRENT DOCUMENT</div>
 
-      <div style={styles.messages}>
-        {messages.length === 0 ? (
-          <p style={styles.empty}>No messages in this chat yet.</p>
+              <div style={styles.documentName}>{documents[0].originalName}</div>
+            </div>
+          </div>
         ) : (
-          messages.map((message, index) => (
-            <div
-              key={index}
+          <div style={styles.uploadBox}>
+            <div style={styles.uploadIcon}>📄</div>
+
+            <h3>No document attached</h3>
+
+            <p>Upload a document to this chat before asking questions.</p>
+
+            <button
+              onClick={() => navigate(`/upload?chatId=${chatId}`)}
+              style={styles.primaryButton}
+            >
+              Upload Document
+            </button>
+          </div>
+        )}
+
+        {/* ERROR */}
+
+        {error && <div style={styles.error}>{error}</div>}
+
+        {/* MESSAGES */}
+
+        <div style={styles.messages}>
+          {messages.length === 0 ? (
+            <div style={styles.emptyState}>
+              <div style={styles.emptyIcon}>✦</div>
+
+              <h2>Ask anything about your document</h2>
+
+              <p>
+                Upload a document and ask questions to get answers grounded in
+                its content.
+              </p>
+            </div>
+          ) : (
+            messages.map((message, index) => (
+              <div
+                key={index}
+                style={{
+                  ...styles.message,
+                  background: message.role === "user" ? "#eef4ff" : "#ffffff",
+                  marginLeft: message.role === "user" ? "80px" : "0",
+                  marginRight: message.role === "user" ? "0" : "80px",
+                }}
+              >
+                <div style={styles.messageRole}>
+                  {message.role === "user" ? "You" : "AI Assistant"}
+                </div>
+
+                <p style={styles.messageContent}>{message.content}</p>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* INPUT */}
+
+        <div style={styles.inputSection}>
+          <div style={styles.inputArea}>
+            <input
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              onKeyDown={handleKeyDown}
+              disabled={loading || documents.length === 0}
+              placeholder={
+                documents.length === 0
+                  ? "Upload a document first..."
+                  : "Ask a question about your document..."
+              }
+              style={styles.input}
+            />
+
+            <button
+              onClick={handleAsk}
+              disabled={loading || documents.length === 0}
               style={{
-                ...styles.message,
-                background: message.role === "user" ? "#e3f2fd" : "#f5f5f5",
+                ...styles.askButton,
+                opacity: loading || documents.length === 0 ? 0.5 : 1,
               }}
             >
-              <strong>{message.role === "user" ? "You" : "AI"}</strong>
+              {loading ? "..." : "↑"}
+            </button>
+          </div>
 
-              <p style={styles.messageContent}>{message.content}</p>
-            </div>
-          ))
-        )}
+          <div style={styles.inputHint}>
+            Press Enter to send · Shift + Enter for a new line
+          </div>
+        </div>
       </div>
-
-      {/* INPUT */}
-
-      <div style={styles.inputArea}>
-        <input
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          onKeyDown={handleKeyDown}
-          disabled={loading || documents.length === 0}
-          placeholder={
-            documents.length === 0
-              ? "Upload a document first..."
-              : "Ask a question..."
-          }
-          style={styles.input}
-        />
-
-        <button
-          onClick={handleAsk}
-          disabled={loading || documents.length === 0}
-          style={{
-            ...styles.askButton,
-            background:
-              loading || documents.length === 0 ? "#9e9e9e" : "#1976d2",
-          }}
-        >
-          {loading ? "Thinking..." : "Ask"}
-        </button>
-      </div>
-    </div>
+    </Layout>
   );
 }
 
 const styles = {
   container: {
-    padding: "40px",
-    maxWidth: "900px",
-    margin: "0 auto",
+    minHeight: "calc(100vh - 80px)",
+    background: "#f7f9fc",
+    padding: "45px 55px",
   },
 
   center: {
-    padding: "40px",
+    minHeight: "70vh",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
     textAlign: "center",
   },
 
   header: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
+    maxWidth: "1200px",
+    margin: "0 auto 30px auto",
+  },
+
+  pageLabel: {
+    color: "#2563eb",
+    fontSize: "13px",
+    fontWeight: "700",
+    letterSpacing: "1.5px",
+    marginBottom: "10px",
+  },
+
+  title: {
+    margin: "0",
+    color: "#172033",
+    fontSize: "32px",
+    fontWeight: "700",
+  },
+
+  subtitle: {
+    color: "#718096",
+    fontSize: "16px",
+    marginTop: "10px",
+  },
+
+  dashboardButton: {
+    padding: "11px 20px",
+    background: "#111827",
+    color: "#ffffff",
+    border: "1px solid #334155",
+    borderRadius: "8px",
+    cursor: "pointer",
+    fontSize: "15px",
   },
 
   documentBox: {
-    marginTop: "20px",
-    padding: "15px",
-    background: "#f5f5f5",
-    borderRadius: "6px",
+    maxWidth: "1200px",
+    margin: "0 auto 25px auto",
+    padding: "18px 22px",
+    background: "#ffffff",
+    border: "1px solid #e2e8f0",
+    borderRadius: "10px",
+    display: "flex",
+    alignItems: "center",
+    gap: "15px",
+  },
+
+  documentIcon: {
+    width: "45px",
+    height: "45px",
+    background: "#eef4ff",
+    borderRadius: "9px",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    fontSize: "22px",
+  },
+
+  documentLabel: {
+    fontSize: "12px",
+    color: "#94a3b8",
+    fontWeight: "700",
+    letterSpacing: "1px",
+  },
+
+  documentName: {
+    marginTop: "4px",
+    fontSize: "16px",
+    fontWeight: "600",
+    color: "#172033",
   },
 
   uploadBox: {
-    marginTop: "20px",
-    padding: "25px",
+    maxWidth: "1200px",
+    margin: "0 auto 25px auto",
+    padding: "35px",
     textAlign: "center",
-    border: "1px solid #ddd",
-    borderRadius: "8px",
+    background: "#ffffff",
+    border: "1px solid #e2e8f0",
+    borderRadius: "10px",
   },
 
-  messages: {
-    marginTop: "25px",
-    minHeight: "300px",
-  },
-
-  message: {
-    padding: "15px",
-    marginBottom: "15px",
-    borderRadius: "8px",
-    border: "1px solid #ddd",
-  },
-
-  messageContent: {
-    marginTop: "8px",
-    whiteSpace: "pre-wrap",
-  },
-
-  inputArea: {
-    display: "flex",
-    gap: "10px",
-  },
-
-  input: {
-    flex: 1,
-    padding: "12px",
-    fontSize: "16px",
-    border: "1px solid #ccc",
-    borderRadius: "6px",
-  },
-
-  askButton: {
-    padding: "12px 25px",
-    color: "white",
-    border: "none",
-    borderRadius: "6px",
-    cursor: "pointer",
+  uploadIcon: {
+    fontSize: "35px",
+    marginBottom: "10px",
   },
 
   primaryButton: {
-    padding: "12px 25px",
-    background: "#1976d2",
-    color: "white",
+    padding: "11px 22px",
+    background: "#2563eb",
+    color: "#ffffff",
     border: "none",
-    borderRadius: "6px",
+    borderRadius: "7px",
     cursor: "pointer",
+    fontSize: "15px",
+    fontWeight: "600",
   },
 
   secondaryButton: {
-    padding: "10px 20px",
-    background: "#757575",
-    color: "white",
+    padding: "11px 22px",
+    background: "#64748b",
+    color: "#ffffff",
     border: "none",
-    borderRadius: "6px",
+    borderRadius: "7px",
     cursor: "pointer",
   },
 
   error: {
-    marginTop: "15px",
-    padding: "12px",
-    background: "#ffebee",
-    color: "#c62828",
-    borderRadius: "6px",
+    maxWidth: "1200px",
+    margin: "15px auto",
+    padding: "12px 16px",
+    background: "#fef2f2",
+    color: "#dc2626",
+    border: "1px solid #fecaca",
+    borderRadius: "8px",
+  },
+
+  messages: {
+    maxWidth: "1200px",
+    margin: "25px auto",
+    minHeight: "350px",
+  },
+
+  emptyState: {
+    minHeight: "350px",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    textAlign: "center",
+    color: "#172033",
+  },
+
+  emptyIcon: {
+    width: "70px",
+    height: "70px",
+    background: "#eef4ff",
+    borderRadius: "15px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "32px",
+    color: "#2563eb",
+    marginBottom: "20px",
+  },
+
+  message: {
+    padding: "18px 20px",
+    marginBottom: "15px",
+    borderRadius: "10px",
+    border: "1px solid #e2e8f0",
+    boxShadow: "0 2px 8px rgba(15, 23, 42, 0.04)",
+  },
+
+  messageRole: {
+    fontSize: "13px",
+    fontWeight: "700",
+    color: "#2563eb",
+    marginBottom: "8px",
+  },
+
+  messageContent: {
+    margin: "0",
+    color: "#334155",
+    fontSize: "15px",
+    lineHeight: "1.6",
+    whiteSpace: "pre-wrap",
+  },
+
+  inputSection: {
+    maxWidth: "1200px",
+    margin: "30px auto 0 auto",
+  },
+
+  inputArea: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    background: "#ffffff",
+    border: "1px solid #cbd5e1",
+    borderRadius: "14px",
+    padding: "8px 10px 8px 18px",
+    boxShadow: "0 4px 15px rgba(15, 23, 42, 0.06)",
+  },
+
+  input: {
+    flex: 1,
+    border: "none",
+    outline: "none",
+    padding: "12px 5px",
+    fontSize: "16px",
+    color: "#172033",
+    background: "transparent",
+  },
+
+  askButton: {
+    width: "48px",
+    height: "48px",
+    border: "none",
+    borderRadius: "10px",
+    background: "#2563eb",
+    color: "#ffffff",
+    fontSize: "25px",
+    cursor: "pointer",
+  },
+
+  inputHint: {
+    textAlign: "center",
+    marginTop: "10px",
+    color: "#94a3b8",
+    fontSize: "12px",
   },
 
   empty: {
