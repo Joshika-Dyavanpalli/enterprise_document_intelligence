@@ -223,6 +223,8 @@ Message count - Attached document - Last updated time
 
 Users can open a previous chat and continue the conversation.
 
+Chat history is stored in the backend MongoDB database. The My Chats page retrieves saved conversations through the chat API. Persistence after page refresh/re-login is currently being verified and finalized.
+
 ### Document Management
 
 Users can: - View their documents - View document details - See file
