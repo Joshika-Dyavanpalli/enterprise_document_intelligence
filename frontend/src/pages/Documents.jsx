@@ -10,8 +10,15 @@ export default function Documents() {
   const [loading, setLoading] = useState(true);
   const [opening, setOpening] = useState(false);
   const [error, setError] = useState("");
+  const [userRole, setUserRole] = useState("");
 
   useEffect(() => {
+    const currentUser = JSON.parse(localStorage.getItem("user"));
+
+    if (currentUser) {
+      setUserRole(currentUser.role);
+    }
+
     fetchDocuments();
   }, []);
 
@@ -114,22 +121,16 @@ export default function Documents() {
   return (
     <Layout>
       <div style={styles.container}>
-        {/* PAGE HEADER */}
         <div style={styles.header}>
           <h1 style={styles.title}>My Documents</h1>
 
-          <p style={styles.subtitle}>
-            View and manage your uploaded documents and conversations.
-          </p>
+          <p style={styles.subtitle}>View and query your uploaded documents.</p>
         </div>
 
-        {/* ERROR */}
         {error && <div style={styles.error}>{error}</div>}
 
-        {/* OPENING MESSAGE */}
         {opening && <div style={styles.opening}>Opening document chat...</div>}
 
-        {/* EMPTY STATE */}
         {documents.length === 0 ? (
           <div style={styles.emptyCard}>
             <div style={styles.emptyIcon}>▤</div>
@@ -137,22 +138,22 @@ export default function Documents() {
             <h2 style={styles.emptyTitle}>No documents yet</h2>
 
             <p style={styles.emptyText}>
-              Create a new chat and upload a document to start asking questions.
+              Upload a document to start asking questions.
             </p>
 
-            <button
-              onClick={() => navigate("/dashboard")}
-              style={styles.newChatButton}
-            >
-              New Chat
-            </button>
+            {userRole !== "Viewer" && (
+              <button
+                onClick={() => navigate("/upload")}
+                style={styles.newChatButton}
+              >
+                Upload Document
+              </button>
+            )}
           </div>
         ) : (
-          /* DOCUMENT LIST */
           <div style={styles.documentList}>
             {documents.map((doc) => (
               <div key={doc._id} style={styles.documentCard}>
-                {/* DOCUMENT INFORMATION */}
                 <div style={styles.documentInfo}>
                   <div style={styles.documentIcon}>▤</div>
 
@@ -169,8 +170,8 @@ export default function Documents() {
                   </div>
                 </div>
 
-                {/* ACTIONS */}
                 <div style={styles.actions}>
+                  {/* Viewer, Editor and Admin can open/query */}
                   <button
                     onClick={() => openChat(doc)}
                     disabled={opening}
@@ -183,12 +184,15 @@ export default function Documents() {
                     {opening ? "Opening..." : "Open Chat"}
                   </button>
 
-                  <button
-                    onClick={() => deleteDocument(doc._id)}
-                    style={styles.deleteButton}
-                  >
-                    Delete
-                  </button>
+                  {/* Only Admin can delete */}
+                  {userRole !== "Viewer" && (
+                    <button
+                      onClick={() => deleteDocument(doc._id)}
+                      style={styles.deleteButton}
+                    >
+                      Delete
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -393,12 +397,5 @@ const styles = {
     color: "#6b7280",
     fontSize: "14px",
     boxShadow: "0 4px 18px rgba(0, 0, 0, 0.04)",
-  },
-
-  loadingContainer: {
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    minHeight: "300px",
   },
 };

@@ -232,9 +232,7 @@ async function uploadDocument(req, res) {
 async function getAllDocuments(req, res) {
   try {
     const documents = await Document.find(
-      {
-        userId: req.user.id,
-      },
+      {},
       {
         extractedText: 0,
       },

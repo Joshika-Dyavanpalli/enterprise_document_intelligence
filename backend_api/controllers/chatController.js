@@ -19,10 +19,7 @@ async function createNewChat(req, res) {
 
     // Attach existing document if provided
     if (documentId) {
-      const document = await Document.findOne({
-        _id: documentId,
-        userId: req.user.id,
-      });
+      const document = await Document.findById(documentId);
 
       if (!document) {
         return res.status(404).json({
@@ -152,11 +149,8 @@ async function askQuestion(req, res) {
     }
 
     // Find document belonging to logged-in user
-    const document = await Document.findOne({
-      _id: documentId,
-      userId: req.user.id,
-    });
-
+    const document = await Document.findById(documentId);
+    
     if (!document) {
       return res.status(404).json({
         success: false,
