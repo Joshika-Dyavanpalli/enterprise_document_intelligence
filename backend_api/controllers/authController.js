@@ -5,6 +5,7 @@ const User = require("../models/User.js");
 const Chat = require("../models/Chat.js");
 
 const { uploadToAI } = require("../services/aiService");
+const documentQueue = require("../queues/documentQueue");
 
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
@@ -185,23 +186,25 @@ async function uploadDocument(req, res) {
     }
 
     // Upload to AI service
-    const aiResponse = await uploadToAI(req.file.path, req.file.originalname);
-
-    // Save document
+    // Save document first with pending status
     const savedDocument = await Document.create({
       userId: req.user.id,
       filename: req.file.filename,
       originalName: req.file.originalname,
       fileType: req.file.mimetype,
       filePath: req.file.path,
-      extractedText: aiResponse.text,
-      vectorPath: aiResponse.vector_path,
-      chunksPath: aiResponse.chunks_path,
-      chunkCount: aiResponse.chunk_count,
+      processingStatus: "pending",
     });
 
-    // Attach document to THIS chat
+    // Add document to the current chat
     chat.documents.push(savedDocument._id);
+
+    // Add document processing job to BullMQ
+    await documentQueue.add("process-document", {
+      documentId: savedDocument._id.toString(),
+      filePath: req.file.path,
+      originalName: req.file.originalname,
+    });
 
     // Give chat a useful title
     if (chat.title === "New Chat") {

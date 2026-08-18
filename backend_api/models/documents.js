@@ -30,18 +30,28 @@ const documentSchema = new mongoose.Schema(
 
     extractedText: {
       type: String,
-      required: true,
+      default: "",
     },
+
     vectorPath: {
       type: String,
+      default: null,
     },
 
     chunksPath: {
       type: String,
+      default: null,
     },
 
     chunkCount: {
       type: Number,
+      default: 0,
+    },
+
+    processingStatus: {
+      type: String,
+      enum: ["pending", "processing", "completed", "failed"],
+      default: "pending",
     },
   },
   {
