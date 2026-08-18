@@ -415,6 +415,16 @@ NumPy
 Ollama
 Llama 3.2
 ```
+Queuing with BullMQ and Redis
+
+Implemented job queuing using BullMQ.
+Integrated Redis as the queue backend.
+Verified that jobs are successfully added to and processed from the queue.
+
+Caching with Redis
+
+Implemented Redis-based caching to improve response efficiency.
+Verified that caching is working successfully.
 
 Main files:
 
