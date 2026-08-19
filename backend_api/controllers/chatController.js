@@ -1,6 +1,7 @@
 const Chat = require("../models/Chat");
 const Document = require("../models/documents");
 const { askAI } = require("../services/aiService");
+const redisConnection = require("../config/redis");
 
 // ======================================================
 // CREATE NEW CHAT
@@ -150,7 +151,7 @@ async function askQuestion(req, res) {
 
     // Find document belonging to logged-in user
     const document = await Document.findById(documentId);
-    
+
     if (!document) {
       return res.status(404).json({
         success: false,
@@ -170,12 +171,32 @@ async function askQuestion(req, res) {
       });
     }
 
-    // Ask AI
-    const aiResponse = await askAI(
-      document.vectorPath,
-      document.chunksPath,
-      question.trim(),
-    );
+    // Create a unique cache key for this document + question
+    const cacheKey = `qa:${documentId}:${question.trim().toLowerCase()}`;
+
+    // Check Redis cache first
+    const cachedAnswer = await redisConnection.get(cacheKey);
+
+    let answer;
+
+    if (cachedAnswer) {
+      console.log("CACHE HIT:", cacheKey);
+
+      answer = cachedAnswer;
+    } else {
+      console.log("CACHE MISS:", cacheKey);
+
+      const aiResponse = await askAI(
+        document.vectorPath,
+        document.chunksPath,
+        question.trim(),
+      );
+
+      answer = aiResponse.answer;
+
+      // Store answer in Redis for 1 hour
+      await redisConnection.set(cacheKey, answer, "EX", 3600);
+    }
 
     // Save user message
     chat.messages.push({
@@ -186,7 +207,7 @@ async function askQuestion(req, res) {
     // Save assistant message
     chat.messages.push({
       role: "assistant",
-      content: aiResponse.answer,
+      content: answer,
     });
 
     // Change title based on first question
@@ -202,7 +223,7 @@ async function askQuestion(req, res) {
     return res.status(200).json({
       success: true,
       chatId: chat._id,
-      answer: aiResponse.answer,
+      answer: answer,
       messages: chat.messages,
     });
   } catch (error) {
