@@ -1,0 +1,55 @@
+services:
+  mongodb:
+    image: mongo:7
+    container_name: enterprise-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+  redis:
+    image: redis:7
+    container_name: enterprise-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  ai-service:
+    build:
+      context: ./ai_service
+    container_name: enterprise-ai-service
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+
+  backend:
+    build:
+      context: ./backend_api
+    container_name: enterprise-backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      PORT: 5000
+      MONGO_URI: mongodb://mongodb:27017/enterprise_document_intelligence
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      AI_SERVICE_URL: http://ai-service:8000
+    depends_on:
+      - mongodb
+      - redis
+      - ai-service
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: enterprise-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  mongodb_data:
