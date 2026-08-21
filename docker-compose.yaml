@@ -22,6 +22,10 @@ services:
     restart: unless-stopped
     ports:
       - "8000:8000"
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    depends_on:
+      - ollama
 
   backend:
     build:
@@ -51,5 +55,15 @@ services:
     depends_on:
       - backend
 
+  ollama:
+    image: ollama/ollama:latest
+    container_name: enterprise-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
 volumes:
   mongodb_data:
+  ollama_data:

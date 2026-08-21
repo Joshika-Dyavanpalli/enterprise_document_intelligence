@@ -8,7 +8,7 @@ const uploadToAI = async (filePath, originalName) => {
 
     form.append("file", fs.createReadStream(filePath), originalName);
 
-    const response = await axios.post("http://127.0.0.1:8000/upload", form, {
+    const response = await axios.post("http://ai-service:8000/upload", form, {
       headers: form.getHeaders(),
       maxBodyLength: Infinity,
     });
@@ -21,7 +21,7 @@ const uploadToAI = async (filePath, originalName) => {
 };
 
 const askAI = async (vectorPath, chunksPath, question) => {
-  const response = await axios.post("http://127.0.0.1:8000/query", {
+  const response = await axios.post("http://ai-service:8000/query", {
     vector_path: vectorPath,
     chunks_path: chunksPath,
     question: question,

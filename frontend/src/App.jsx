@@ -8,7 +8,7 @@ import Chat from "./pages/Chat";
 import Documents from "./pages/Documents";
 import Chats from "./pages/Chats";
 import Profile from "./pages/Profile";
-import UserManagement from "./pages/UserManagement";
+import UserManagement from "./pages/userManagement";
 
 function App() {
   return (
