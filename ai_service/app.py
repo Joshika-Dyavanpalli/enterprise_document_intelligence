@@ -358,8 +358,13 @@ async def query_document(
     # SEND TO OLLAMA
     # --------------------------------------------------
 
+    ollama_host = os.getenv(
+        "OLLAMA_HOST",
+        "http://localhost:11434"
+    )
+
     response = requests.post(
-        "http://localhost:11434/api/generate",
+        f"{ollama_host}/api/generate",
         json={
             "model": "llama3.2",
             "prompt": prompt,
