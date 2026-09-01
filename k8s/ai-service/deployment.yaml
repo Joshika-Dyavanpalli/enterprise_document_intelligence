@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-service
+  namespace: enterprise-app
+spec:
+  containers:
+    - name: ai-service
+      image: enterprise-ai-service:latest
+      ports:
+        - containerPort: 8000
+
+      env:
+        - name: OLLAMA_HOST
+          value: "http://ollama:11434"
+
+      volumeMounts:
+        - name: ai-storage
+          mountPath: /app/uploads
+
+        - name: ai-storage
+          mountPath: /app/vector_store
+
+  volumes:
+    - name: ai-storage
+      persistentVolumeClaim:
+        claimName: ai-service-pvc
