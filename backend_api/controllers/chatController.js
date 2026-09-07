@@ -191,7 +191,7 @@ async function askQuestion(req, res) {
         document.chunksPath,
         question.trim(),
       );
-
+      console.log("AI RESPONSE:", aiResponse);
       answer = aiResponse.answer;
 
       // Store answer in Redis for 1 hour

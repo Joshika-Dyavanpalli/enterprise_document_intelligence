@@ -21,13 +21,30 @@ const uploadToAI = async (filePath, originalName) => {
 };
 
 const askAI = async (vectorPath, chunksPath, question) => {
-  const response = await axios.post("http://ai-service:8000/query", {
-    vector_path: vectorPath,
-    chunks_path: chunksPath,
-    question: question,
-  });
+  try {
+    const startTime = Date.now();
 
-  return response.data;
+    console.log("AI QUERY START:", question);
+
+    const response = await axios.post(
+      "http://ai-service:8000/query",
+      {
+        vector_path: vectorPath,
+        chunks_path: chunksPath,
+        question: question,
+      },
+      {
+        timeout: 180000,
+      },
+    );
+
+    console.log("AI QUERY RESPONSE TIME:", `${Date.now() - startTime} ms`);
+
+    return response.data;
+  } catch (error) {
+    console.error("AI QUERY ERROR:", error.response?.data || error.message);
+    throw error;
+  }
 };
 
 module.exports = {
