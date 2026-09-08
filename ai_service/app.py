@@ -9,6 +9,7 @@ from pydantic import BaseModel
 import requests
 import uuid
 import re
+import time
 
 from embeddings import generate_embeddings
 from prompt import build_prompt
@@ -270,9 +271,17 @@ async def query_document(
     # LOAD VECTOR STORE
     # --------------------------------------------------
 
+    load_start = time.perf_counter()
+
     index, chunks = load_vector_store(
         request.vector_path,
         request.chunks_path
+    )
+
+    load_time = time.perf_counter() - load_start
+
+    print(
+        f"VECTOR LOAD TIME: {load_time:.4f} seconds"
     )
 
 
