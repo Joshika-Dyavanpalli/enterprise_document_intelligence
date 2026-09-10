@@ -8,6 +8,7 @@ const upload = require("../middleware/multerMiddleware");
 const {
   signup,
   login,
+  refreshAccessToken,
   getProfile,
   uploadDocument,
   getAllDocuments,
@@ -20,6 +21,7 @@ const {
 // Authentication
 router.post("/signup", signup);
 router.post("/login", login);
+router.post("/refresh", refreshAccessToken);
 
 router.get("/profile", authMiddleware, getProfile);
 

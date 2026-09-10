@@ -9,6 +9,11 @@ const documentQueue = require("../queues/documentQueue");
 
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const RefreshToken = require("../models/RefreshToken");
+const {
+  generateRefreshToken,
+  hashRefreshToken,
+} = require("../utils/tokenUtils");
 
 /*
   SIGNUP
@@ -99,10 +104,20 @@ async function login(req, res) {
       },
     );
 
+    const refreshToken = generateRefreshToken();
+    const refreshTokenHash = hashRefreshToken(refreshToken);
+
+    await RefreshToken.create({
+      userId: user._id,
+      tokenHash: refreshTokenHash,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    });
+
     return res.status(200).json({
       success: true,
       message: "Login successful",
       token,
+      refreshToken,
 
       user: {
         id: user._id,
@@ -113,6 +128,96 @@ async function login(req, res) {
     });
   } catch (error) {
     console.log(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
+}
+
+async function refreshAccessToken(req, res) {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(401).json({
+        success: false,
+        message: "Refresh token missing",
+      });
+    }
+
+    const tokenHash = hashRefreshToken(refreshToken);
+
+    const storedToken = await RefreshToken.findOne({
+      tokenHash,
+    });
+
+    if (!storedToken) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid refresh token",
+      });
+    }
+
+    if (storedToken.revoked) {
+      return res.status(401).json({
+        success: false,
+        message: "Refresh token has already been used",
+      });
+    }
+
+    if (storedToken.expiresAt < new Date()) {
+      return res.status(401).json({
+        success: false,
+        message: "Refresh token expired",
+      });
+    }
+
+    const user = await User.findById(storedToken.userId).select("-password");
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Generate new access token
+    const newAccessToken = jwt.sign(
+      {
+        id: user._id,
+        role: user.role,
+      },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "1d",
+      },
+    );
+
+    // Generate new refresh token
+    const newRefreshToken = generateRefreshToken();
+    const newRefreshTokenHash = hashRefreshToken(newRefreshToken);
+
+    const newStoredToken = await RefreshToken.create({
+      userId: user._id,
+      tokenHash: newRefreshTokenHash,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    });
+
+    // Revoke old refresh token
+    storedToken.revoked = true;
+    storedToken.replacedBy = newStoredToken._id;
+    await storedToken.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Token refreshed successfully",
+      token: newAccessToken,
+      refreshToken: newRefreshToken,
+    });
+  } catch (error) {
+    console.log("REFRESH TOKEN ERROR:", error);
 
     return res.status(500).json({
       success: false,
@@ -433,6 +538,7 @@ async function updateUserRole(req, res) {
 module.exports = {
   signup,
   login,
+  refreshAccessToken,
   getProfile,
   uploadDocument,
   getAllDocuments,
